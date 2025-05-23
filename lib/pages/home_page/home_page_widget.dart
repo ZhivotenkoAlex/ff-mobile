@@ -43,20 +43,23 @@ class _HomePageWidgetState extends State<HomePageWidget> {
       child: Scaffold(
         key: scaffoldKey,
         backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
-        body: Column(
-          mainAxisSize: MainAxisSize.max,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            FlutterFlowWebView(
-              content:
-                  'https://skanuj-staging.web.app?company_name=klepierre-demo',
-              bypass: false,
-              width: MediaQuery.sizeOf(context).width * 1.0,
-              height: MediaQuery.sizeOf(context).height * 1.0,
-              verticalScroll: false,
-              horizontalScroll: false,
-            ),
-          ],
+        body: SafeArea(
+          top: true,
+          child: Column(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              FlutterFlowWebView(
+                content:
+                    'https://skanuj-staging.web.app?company_name=klepierre-demo',
+                bypass: false,
+                width: MediaQuery.sizeOf(context).width * 1.0,
+                height: MediaQuery.sizeOf(context).height * 1.0,
+                verticalScroll: false,
+                horizontalScroll: false,
+              ),
+            ],
+          ),
         ),
       ),
     );
