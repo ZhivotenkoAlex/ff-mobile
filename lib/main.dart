@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import 'dart:convert';
 
-const String url = 'https://skanuj-staging.web.app/coupons?company_name=intermag-demo';
+const String url = 'https://skanuj-staging.web.app/coupons?company_name=klepierre-demo';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +42,30 @@ class WebViewScaffold extends StatefulWidget {
 class _WebViewScaffoldState extends State<WebViewScaffold> {
   InAppWebViewController? _controller;
 
+  @override
+  void initState() {
+    super.initState();
+    // Request camera permission immediately when the widget is created
+    _requestInitialCameraPermission();
+  }
+
+  Future<void> _requestInitialCameraPermission() async {
+    try {
+      debugPrint('Requesting initial camera permission...');
+      final cameraStatus = await Permission.camera.status;
+      
+      if (cameraStatus.isDenied || cameraStatus.isRestricted) {
+        debugPrint('Camera permission not granted, requesting...');
+        final result = await Permission.camera.request();
+        debugPrint('Camera permission result: $result');
+      } else if (cameraStatus.isGranted) {
+        debugPrint('Camera permission already granted');
+      }
+    } catch (e) {
+      debugPrint('Error requesting camera permission: $e');
+    }
+  }
+
   void _injectJavaScript() {
     final String jsCode = '''
 (function() {
@@ -64,15 +89,23 @@ class _WebViewScaffoldState extends State<WebViewScaffold> {
   var observer = new MutationObserver(hideElements);
   observer.observe(document.body, { childList: true, subtree: true });
   
-  // Handle file input clicks
+  // ONLY intercept direct file input clicks - nothing else
   document.addEventListener('click', function(e) {
+    // Only handle actual file input elements
     if (e.target && e.target.type === 'file') {
+      console.log('File input clicked, preventing default and calling Flutter');
       e.preventDefault();
-      if (window.FilePicker && window.FilePicker.postMessage) {
-        window.FilePicker.postMessage('pick_file');
+      e.stopPropagation();
+      
+      // Store reference to the file input
+      window.currentFileInput = e.target;
+      
+      // Call Flutter file picker
+      if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+        window.flutter_inappwebview.callHandler('FilePicker', 'pick_file');
       }
     }
-  });
+  }, true);
   
   console.log('JavaScript injection completed');
 })();
@@ -83,9 +116,12 @@ class _WebViewScaffoldState extends State<WebViewScaffold> {
 
   Future<void> _handleFilePicker() async {
     try {
+      debugPrint('File picker triggered from JavaScript');
+      
       FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
+        type: FileType.image,
         allowMultiple: false,
+        allowCompression: true,
       );
 
       if (result != null && result.files.isNotEmpty) {
@@ -94,17 +130,21 @@ class _WebViewScaffoldState extends State<WebViewScaffold> {
         String? filePath = file.path;
         
         if (filePath != null) {
+          debugPrint('File selected: $fileName at $filePath');
+          
           File selectedFile = File(filePath);
           List<int> fileBytes = await selectedFile.readAsBytes();
           String base64String = base64Encode(fileBytes);
           String mimeType = _getMimeType(fileName);
           
+          // Inject the file into the web page
           await _controller?.evaluateJavascript(source: """
             (function() {
               try {
-                var fileInputs = document.querySelectorAll('input[type="file"]');
-                if (fileInputs.length > 0) {
-                  var fileInput = fileInputs[0];
+                var fileInput = window.currentFileInput || document.querySelector('input[type="file"]');
+                
+                if (fileInput) {
+                  console.log('Injecting file into input:', '$fileName');
                   
                   var byteCharacters = atob('$base64String');
                   var byteNumbers = new Array(byteCharacters.length);
@@ -120,6 +160,7 @@ class _WebViewScaffoldState extends State<WebViewScaffold> {
                   dataTransfer.items.add(file);
                   fileInput.files = dataTransfer.files;
                   
+                  // Trigger events
                   var changeEvent = new Event('change', { bubbles: true });
                   fileInput.dispatchEvent(changeEvent);
                   
@@ -127,6 +168,8 @@ class _WebViewScaffoldState extends State<WebViewScaffold> {
                   fileInput.dispatchEvent(inputEvent);
                   
                   console.log('File injected successfully:', '$fileName');
+                } else {
+                  console.error('No file input found to inject file into');
                 }
               } catch (error) {
                 console.error('Error injecting file:', error);
@@ -134,6 +177,8 @@ class _WebViewScaffoldState extends State<WebViewScaffold> {
             })();
           """);
         }
+      } else {
+        debugPrint('No file selected');
       }
     } catch (e) {
       debugPrint('File picker error: $e');
@@ -190,6 +235,7 @@ class _WebViewScaffoldState extends State<WebViewScaffold> {
         onWebViewCreated: (controller) {
           _controller = controller;
           
+          // Add JavaScript handler for file picker
           controller.addJavaScriptHandler(
             handlerName: 'FilePicker',
             callback: (args) async {
@@ -215,6 +261,7 @@ class _WebViewScaffoldState extends State<WebViewScaffold> {
           debugPrint('Console: ${consoleMessage.message}');
         },
         onPermissionRequest: (controller, request) async {
+          // Automatically grant ALL permissions - no checks, no logs, just grant
           return PermissionResponse(
             resources: request.resources,
             action: PermissionResponseAction.GRANT,
