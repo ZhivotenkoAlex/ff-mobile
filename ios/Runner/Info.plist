@@ -77,5 +77,13 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	
+	<!-- Camera permission for QR code scanning -->
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access to scan QR codes and barcodes.</string>
+	
+	<!-- Microphone permission (sometimes required with camera) -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app may need microphone access for video recording features.</string>
 </dict>
 </plist>
