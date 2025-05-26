@@ -264,8 +264,9 @@ extension IterableExt<T> on Iterable<T> {
       .toList();
 }
 
-void setDarkModeSetting(BuildContext context, ThemeMode themeMode) =>
-    MyApp.of(context).setThemeMode(themeMode);
+void setDarkModeSetting(BuildContext context, ThemeMode themeMode) {
+  // MyApp.of(context).setThemeMode(themeMode);
+}
 
 void showSnackbar(
   BuildContext context,
@@ -442,7 +443,17 @@ extension ListUniqueExt<T> on Iterable<T> {
   }
 }
 
-String getCurrentRoute(BuildContext context) =>
-    context.mounted ? MyApp.of(context).getRoute() : '';
-List<String> getCurrentRouteStack(BuildContext context) =>
-    context.mounted ? MyApp.of(context).getRouteStack() : [];
+  // String getCurrentRoute(BuildContext context) =>
+  //     context.mounted ? MyApp.of(context).getRoute() : '';
+  // List<String> getCurrentRouteStack(BuildContext context) =>
+  //     context.mounted ? MyApp.of(context).getRouteStack() : [];
+
+Column(
+  children: [
+    Container(
+      height: MediaQuery.of(context).padding.top + 12, // 12 for extra space
+      color: Colors.white, // or match your web app's background
+    ),
+    Expanded(child: WebViewWidget(controller: _controller)),
+  ],
+)
